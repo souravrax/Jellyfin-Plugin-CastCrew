@@ -306,9 +306,10 @@ public class CastCrewDockerIntegrationTests
         using var client = _fixture.CreateHttpClient();
         var response = await client.GetAsync("web/config.json");
         response.EnsureSuccessStatusCode();
-        var json = await response.Content.ReadAsStringAsync();
-        Assert.Contains("Cast&Crew", json);
-        Assert.Contains("cast_crew", json);
+        using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        Assert.Contains(json.RootElement.GetProperty("menuLinks").EnumerateArray(), link =>
+            link.GetProperty("name").GetString() == "Cast&Crew" &&
+            link.GetProperty("url").GetString()!.Contains("cast_crew", StringComparison.Ordinal));
     }
 
     [DockerFact]
