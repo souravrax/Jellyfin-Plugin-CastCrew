@@ -26,7 +26,15 @@ Fork of [Zieng/Jellyfin-Plugin-CastCrew](https://github.com/Zieng/Jellyfin-Plugi
 
 Jellyfin will automatically select the correct version for your server (10.10.x, 10.11.x, or 12.x).
 The manifest is served directly from the repository; GitHub Pages is not required.
-The plugin repository manifest keeps historical releases, so previous CastCrew versions remain visible in Jellyfin's plugin catalog.
+Release `v0.2.1.0` provides distinct plugin versions so Jellyfin selects the correct build without depending on manifest order:
+
+| Jellyfin server | Plugin version | Runtime |
+|---|---|---|
+| 10.10.x | `0.2.1.10` | .NET 8 |
+| 10.11.x | `0.2.1.11` | .NET 9 |
+| 12.x | `0.2.1.12` | .NET 10 |
+
+The catalog version, DLL assembly version, and installation folder use the same version. The former `0.2.0.0` release reused one version for all three builds and could install an incompatible DLL. Update Jellyfin 12 installations to `0.2.1.12`. Historical duplicate entries are collapsed to one ABI per version.
 
 ### Manual Installation
 
@@ -119,11 +127,12 @@ Requires the .NET 10 SDK. Test projects allow runtime roll-forward if only .NET 
 ```sh
 dotnet build src/Jellyfin.Plugin.CastCrew -c Release
 dotnet test tests/Jellyfin.Plugin.CastCrew.Tests -c Release
+python3 -B -m unittest discover -s tests/packaging -v
 dotnet test tests/Jellyfin.Plugin.CastCrew.IntegrationTests -c Release
-python3 scripts/package_plugin.py --version 0.2.0.0 --repository souravrax/Jellyfin-Plugin-CastCrew
+python3 scripts/package_plugin.py --version 0.2.1.0 --repository souravrax/Jellyfin-Plugin-CastCrew
 ```
 
-The integration suite starts an isolated Jellyfin 12.0 container when Docker is available and removes it after the run. It does not use your normal Jellyfin library. Host endpoint tests require `CASTCREW_RUN_INTEGRATION_TESTS=true` and a configured test server. Tagging `v<version>` publishes three server-specific ZIPs, a GitHub release, and the plugin repository manifest. Package URLs point to release assets so older manifest entries remain downloadable.
+The integration suite starts an isolated Jellyfin 12.0 container when Docker is available and removes it after the run. It does not use your normal Jellyfin library. Host endpoint tests require `CASTCREW_RUN_INTEGRATION_TESTS=true` and a configured test server. Tagging `v<major>.<minor>.<patch>.0` publishes three server-specific ZIPs, a GitHub release, and the plugin repository manifest. Package URLs point to release assets so older manifest entries remain downloadable.
 
 For architecture details, build commands, API contracts, project structure, and contribution guidance, see **[DESIGN.md](DESIGN.md)**.
 

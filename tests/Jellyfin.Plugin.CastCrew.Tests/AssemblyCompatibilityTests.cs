@@ -21,6 +21,23 @@ public class AssemblyCompatibilityTests
     private static readonly Assembly PluginAssembly =
         typeof(CastCrewPlugin).Assembly;
 
+    [Fact]
+    public void PluginAssembly_VersionIdentifiesItsServerAbi()
+    {
+#if NET10_0_OR_GREATER
+        const int expectedRevision = 12;
+#elif NET9_0_OR_GREATER
+        const int expectedRevision = 11;
+#else
+        const int expectedRevision = 10;
+#endif
+        var version = PluginAssembly.GetName().Version!;
+        Assert.Equal(expectedRevision, version.Revision);
+        Assert.Equal(version.ToString(), PluginAssembly.GetCustomAttribute<AssemblyFileVersionAttribute>()!.Version);
+        // The SDK may append a source revision to the informational version.
+        Assert.StartsWith(version.ToString(), PluginAssembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()!.InformationalVersion);
+    }
+
     /// <summary>
     /// The maximum allowed assembly version for MediaBrowser references per target
     /// framework. This must match the baseline targetAbi for each Jellyfin series.

@@ -35,6 +35,8 @@ jobs:
           echo "value=$version" >> "$GITHUB_OUTPUT"
       - name: Build all supported server targets
         run: dotnet build src/Jellyfin.Plugin.CastCrew/Jellyfin.Plugin.CastCrew.csproj -c Release -p:Version=${{ steps.version.outputs.value }}
+      - name: Test catalog selection and packaging
+        run: python3 -B -m unittest discover -s tests/packaging -v
       - name: Run unit tests for all supported server targets
         run: dotnet test tests/Jellyfin.Plugin.CastCrew.Tests -c Release -p:Version=${{ steps.version.outputs.value }}
       - name: Run Jellyfin 12 container integration tests

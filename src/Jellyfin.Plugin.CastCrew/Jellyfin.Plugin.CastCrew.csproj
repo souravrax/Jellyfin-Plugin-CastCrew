@@ -4,7 +4,7 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <AssemblyName>Jellyfin.Plugin.CastCrew</AssemblyName>
-    <Version>0.2.0.0</Version>
+    <Version>0.2.1.0</Version>
     <Company>CastCrew</Company>
     <Product>Jellyfin.Plugin.CastCrew</Product>
     <Description>Jellyfin plugin that adds a Cast and Crew library module.</Description>
@@ -13,18 +13,31 @@
   <!-- Jellyfin 10.10.x targets net8.0 — use baseline version for broadest compatibility -->
   <PropertyGroup Condition="'$(TargetFramework)' == 'net8.0'">
     <JellyfinVersion>10.10.0</JellyfinVersion>
+    <CastCrewTargetRevision>10</CastCrewTargetRevision>
   </PropertyGroup>
 
   <!-- Jellyfin 10.11.x targets net9.0 — use baseline version for broadest compatibility -->
   <PropertyGroup Condition="'$(TargetFramework)' == 'net9.0'">
     <JellyfinVersion>10.11.0</JellyfinVersion>
+    <CastCrewTargetRevision>11</CastCrewTargetRevision>
     <DefineConstants>$(DefineConstants);JELLYFIN_10_11</DefineConstants>
   </PropertyGroup>
 
   <!-- Jellyfin 12 uses .NET 10 and the post-10.11 user entity namespace. -->
   <PropertyGroup Condition="'$(TargetFramework)' == 'net10.0'">
     <JellyfinVersion>12.0.0</JellyfinVersion>
+    <CastCrewTargetRevision>12</CastCrewTargetRevision>
     <DefineConstants>$(DefineConstants);JELLYFIN_12</DefineConstants>
+  </PropertyGroup>
+
+  <!-- Keep assembly, installation folder and catalog versions identical.
+       The release tag's fourth component is reserved and must be zero. -->
+  <PropertyGroup Condition="'$(CastCrewTargetRevision)' != ''">
+    <CastCrewPackageVersion>$([System.Version]::Parse('$(Version)').ToString(3)).$(CastCrewTargetRevision)</CastCrewPackageVersion>
+    <AssemblyVersion>$(CastCrewPackageVersion)</AssemblyVersion>
+    <FileVersion>$(CastCrewPackageVersion)</FileVersion>
+    <InformationalVersion>$(CastCrewPackageVersion)</InformationalVersion>
+    <PackageVersion>$(CastCrewPackageVersion)</PackageVersion>
   </PropertyGroup>
 
   <ItemGroup>

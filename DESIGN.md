@@ -247,7 +247,7 @@ Jellyfin starts
 | Unit tests | `dotnet test tests/Jellyfin.Plugin.CastCrew.Tests/Jellyfin.Plugin.CastCrew.Tests.csproj` |
 | Docker tests | `dotnet test tests/Jellyfin.Plugin.CastCrew.IntegrationTests/Jellyfin.Plugin.CastCrew.IntegrationTests.csproj --filter "FullyQualifiedName~CastCrewDockerIntegrationTests"` |
 | Integration tests | `CASTCREW_RUN_INTEGRATION_TESTS=true CASTCREW_BASE_URL=http://127.0.0.1:8096 CASTCREW_API_KEY=<key> dotnet test tests/Jellyfin.Plugin.CastCrew.IntegrationTests/Jellyfin.Plugin.CastCrew.IntegrationTests.csproj` |
-| Release ZIPs | Build Release, then `python3 scripts/package_plugin.py --version 0.2.0.0 --repository souravrax/Jellyfin-Plugin-CastCrew` |
+| Release ZIPs | Build Release, then `python3 scripts/package_plugin.py --version 0.2.1.0 --repository souravrax/Jellyfin-Plugin-CastCrew` |
 
 ### Integration Test Environment Variables
 
@@ -324,4 +324,6 @@ The .NET 10 target builds against the baseline Jellyfin 12.0.0 SDK and emits tar
 
 All three targets are tested and packaged separately. Release ZIPs contain only the plugin assembly and symbols at the archive root; server dependencies are supplied by Jellyfin. GitHub release assets provide immutable version-specific download URLs; the raw manifest on the `gh-pages` branch retains earlier releases and requires no GitHub Pages site. The Docker integration suite uses the baseline official Jellyfin 12.0 image.
 
-When several packages share a plugin version, list target ABIs in descending order (12, 10.11, 10.10). Jellyfin selects the first compatible entry, and a newer server can satisfy an older minimum ABI even though its assembly API is incompatible.
+Plugin versions must be unique across server ABIs. A release tag `vA.B.C.0` produces assembly/catalog/file versions `A.B.C.10` for Jellyfin 10.10, `A.B.C.11` for 10.11, and `A.B.C.12` for 12. The fourth release-tag component is reserved and must be zero. Each newer ABI therefore has a greater plugin version, while each later release advances an earlier component and supersedes all builds from the prior release. Jellyfin's minimum-ABI filter followed by descending plugin-version selection then chooses the correct artifact regardless of manifest order.
+
+The packager and project file share this mapping. C# tests check actual assembly/file versions per target, while packaging regression tests reproduce the old shared-version failure and verify all permutations of the generated manifest on Jellyfin 10.10, 10.11, 12.0 and 12.4. Historical ambiguous versions are collapsed to the highest target ABI so they cannot reintroduce ties.
