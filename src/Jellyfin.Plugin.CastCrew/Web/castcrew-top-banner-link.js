@@ -1051,7 +1051,7 @@
         var headers = { Accept: 'application/json' };
         var token = resolveAuthToken();
         if (token) {
-            headers['X-Emby-Token'] = token;
+            headers.Authorization = 'MediaBrowser Token="' + token + '"';
         }
 
         return headers;

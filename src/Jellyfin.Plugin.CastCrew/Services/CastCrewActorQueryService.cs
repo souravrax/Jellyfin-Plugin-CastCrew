@@ -28,28 +28,28 @@ public sealed class CastCrewActorQueryService
         _logger = logger;
     }
 
-#if JELLYFIN_10_11
+#if JELLYFIN_10_11 || JELLYFIN_12
     public CastCrewActorsResponse QueryActors(CastCrewActorsQuery query, Jellyfin.Database.Implementations.Entities.User user)
 #else
     public CastCrewActorsResponse QueryActors(CastCrewActorsQuery query, Jellyfin.Data.Entities.User user)
 #endif
         => QueryPersons(query, user, "Actor");
 
-#if JELLYFIN_10_11
+#if JELLYFIN_10_11 || JELLYFIN_12
     public CastCrewActorsResponse QueryDirectors(CastCrewActorsQuery query, Jellyfin.Database.Implementations.Entities.User user)
 #else
     public CastCrewActorsResponse QueryDirectors(CastCrewActorsQuery query, Jellyfin.Data.Entities.User user)
 #endif
         => QueryPersons(query, user, "Director");
 
-#if JELLYFIN_10_11
+#if JELLYFIN_10_11 || JELLYFIN_12
     public CastCrewActorsResponse QueryProducers(CastCrewActorsQuery query, Jellyfin.Database.Implementations.Entities.User user)
 #else
     public CastCrewActorsResponse QueryProducers(CastCrewActorsQuery query, Jellyfin.Data.Entities.User user)
 #endif
         => QueryPersons(query, user, "Producer");
 
-#if JELLYFIN_10_11
+#if JELLYFIN_10_11 || JELLYFIN_12
     private CastCrewActorsResponse QueryPersons(CastCrewActorsQuery query, Jellyfin.Database.Implementations.Entities.User user, string personType)
 #else
     private CastCrewActorsResponse QueryPersons(CastCrewActorsQuery query, Jellyfin.Data.Entities.User user, string personType)
@@ -117,7 +117,7 @@ public sealed class CastCrewActorQueryService
                 Limit = 0
             };
 
-            allPersons = _libraryManager.GetPeopleItems(peopleQuery);
+            allPersons = GetPeopleItems(peopleQuery);
         }
         catch (Exception ex)
         {
@@ -181,7 +181,7 @@ public sealed class CastCrewActorQueryService
 
     private CastCrewActorsResponse QueryPersonsGrouped(
         NormalizedCastCrewActorQuery normalizedQuery,
-#if JELLYFIN_10_11
+#if JELLYFIN_10_11 || JELLYFIN_12
         Jellyfin.Database.Implementations.Entities.User user,
 #else
         Jellyfin.Data.Entities.User user,
@@ -207,7 +207,7 @@ public sealed class CastCrewActorQueryService
                 AppearsInItemId = Guid.Empty,
                 Limit = 0
             };
-            nameMatchPersons = _libraryManager.GetPeopleItems(nameQuery);
+            nameMatchPersons = GetPeopleItems(nameQuery);
 
             // Query all persons of this type (for description matching)
             var allQuery = new InternalPeopleQuery(new[] { personType }, new[] { string.Empty })
@@ -218,7 +218,7 @@ public sealed class CastCrewActorQueryService
                 AppearsInItemId = Guid.Empty,
                 Limit = 0
             };
-            allPersons = _libraryManager.GetPeopleItems(allQuery);
+            allPersons = GetPeopleItems(allQuery);
         }
         catch (Exception ex)
         {
@@ -309,6 +309,23 @@ public sealed class CastCrewActorQueryService
             AvailableLibraries = availableLibraries,
             LibraryMappingLastSyncedUtc = libraryMappingLastSyncedUtc
         };
+    }
+
+    private IReadOnlyList<Person> GetPeopleItems(InternalPeopleQuery query)
+    {
+#if JELLYFIN_12
+        // 12 returns a paged result of BaseItem. Apply the same library and parental
+        // access rules as the server's Persons endpoint before converting to DTOs.
+        if (Jellyfin.Data.UserEntityExtensions.HasContentRestrictions(query.User))
+        {
+            query.AccessFilter = new InternalItemsQuery(query.User) { IncludeOwnedItems = true };
+            _libraryManager.ConfigureUserAccess(query.AccessFilter, query.User);
+        }
+        query.EnableTotalRecordCount = false;
+        return _libraryManager.GetPeopleItems(query).Items.OfType<Person>().ToArray();
+#else
+        return _libraryManager.GetPeopleItems(query);
+#endif
     }
 
     private IReadOnlyList<Person> ApplyLibraryFilter(

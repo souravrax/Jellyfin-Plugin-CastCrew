@@ -25,7 +25,9 @@ public class AssemblyCompatibilityTests
     /// The maximum allowed assembly version for MediaBrowser references per target
     /// framework. This must match the baseline targetAbi for each Jellyfin series.
     /// </summary>
-#if NET9_0_OR_GREATER
+#if NET10_0_OR_GREATER
+    private static readonly Version MaxAllowedMediaBrowserVersion = new Version(12, 0, 0, 0);
+#elif NET9_0_OR_GREATER
     private static readonly Version MaxAllowedMediaBrowserVersion = new Version(10, 11, 0, 0);
 #else
     private static readonly Version MaxAllowedMediaBrowserVersion = new Version(10, 10, 0, 0);

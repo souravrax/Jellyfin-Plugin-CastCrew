@@ -73,7 +73,7 @@ cp artifacts/local/Jellyfin.Plugin.CastCrew.dll \
 | HTTP middleware for config.json | Works on ALL platforms (Docker, Windows, macOS) without file writes |
 | File-based sync as supplement | Faster on writable roots (no middleware overhead per request) |
 | `IStartupFilter` registration | Ensures middleware runs BEFORE static file middleware |
-| Multi-target net8.0 + net9.0 | Supports Jellyfin 10.10.x and 10.11.x from a single codebase |
+| Multi-target net8.0 + net9.0 + net10.0 | Supports Jellyfin 10.10.x, 10.11.x, and 12.x from a single codebase |
 | Embedded resources for web pages | No external file dependencies; works in any plugin directory |
 | `InternalPeopleQuery` for data | Only reliable person query path across Jellyfin 10.10/10.11 |
 
@@ -83,7 +83,7 @@ cp artifacts/local/Jellyfin.Plugin.CastCrew.dll \
 
 ```
 src/Jellyfin.Plugin.CastCrew/
-├── Jellyfin.Plugin.CastCrew.csproj    # Multi-target net8.0;net9.0
+├── Jellyfin.Plugin.CastCrew.csproj    # Multi-target net8.0;net9.0;net10.0
 ├── CastCrewPlugin.cs                   # Entry point: BasePlugin + IHasWebPages
 ├── PluginServiceRegistrator.cs         # DI registration: services + IStartupFilter
 ├── CastCrewConfigJsonMiddleware.cs     # Middleware: injects menuLinks into config.json
@@ -106,7 +106,7 @@ src/Jellyfin.Plugin.CastCrew/
     └── castcrew-top-banner-link.js     # Primary Cast&Crew home-shell UI (filters, sync status, refresh)
 
 tests/
-├── Jellyfin.Plugin.CastCrew.Tests/            # Unit tests (xUnit, net8.0+net9.0)
+├── Jellyfin.Plugin.CastCrew.Tests/            # Unit tests (xUnit, net8.0+net9.0+net10.0)
 ├── Jellyfin.Plugin.CastCrew.IntegrationTests/ # Docker + live-host tests
 └── docker/                                     # Manual Docker test environment
 ```
@@ -234,7 +234,7 @@ Jellyfin starts
 - Integration tests: opt-in via env vars (`CASTCREW_RUN_INTEGRATION_TESTS=true`)
 - Docker tests: auto-run when Docker is available (Testcontainers)
 - Keep `RollForward=Major` in test projects for runtime flexibility
-- Tests multi-target `net8.0` + `net9.0`
+- Tests multi-target `net8.0` + `net9.0` + `net10.0`
 
 ---
 
@@ -267,7 +267,7 @@ Workflow: `.github/workflows/package-plugin.yml`
 
 - **Trigger:** Tag push (`v*`) or manual dispatch
 - **Steps:** Restore → Build → Unit tests → Integration tests (Docker excluded) → Publish → Zip → Checksum → Existing manifest fetch → Manifest merge (dedupe by version + ABI) → Upload artifacts → GitHub Release + Pages deploy
-- **Outputs:** `CastCrew_<version>_jellyfin-10.10.zip`, `CastCrew_<version>_jellyfin-10.11.zip`, `manifest.json`
+- **Outputs:** `CastCrew_<version>_jellyfin-10.10.zip`, `CastCrew_<version>_jellyfin-10.11.zip`, `CastCrew_<version>_jellyfin-12.zip`, `manifest.json`
 - **Release history:** Pages deployment keeps existing files, and manifest generation merges current release entries into prior versions so catalog history is preserved.
 - **Version:** Derived from git tag (strips `v` prefix) in CI; local non-GitHub builds default to timestamped `0.1.yyDDD.HHmm`
 
@@ -317,3 +317,9 @@ When working on this codebase as an AI agent:
 ---
 
 *This document is the canonical baseline for all code generation and development tasks.*
+
+## Jellyfin 12 migration
+
+The .NET 10 target builds against the baseline Jellyfin 12.0.0 SDK and emits target ABI 12.0.0.0. User entities retain the 10.11 database namespace. `ILibraryManager.GetPeopleItems` now returns `QueryResult<BaseItem>`: the adapter extracts person items and disables the unused database total count because facets and sorting still operate on the full set. Restricted users use the server's `ConfigureUserAccess` with an `AccessFilter`, matching the native Persons endpoint. Fetch fallbacks use the current Authorization header.
+
+All three targets are tested and packaged separately. Release ZIPs contain only the plugin assembly and symbols at the archive root; server dependencies are supplied by Jellyfin. GitHub release assets provide immutable version-specific download URLs; the manifest retains earlier releases. The Docker integration suite uses the baseline official Jellyfin 12.0 image.

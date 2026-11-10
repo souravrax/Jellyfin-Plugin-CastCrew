@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFramework>net9.0</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
@@ -21,10 +21,4 @@
     <ProjectReference Include="../../src/Jellyfin.Plugin.CastCrew/Jellyfin.Plugin.CastCrew.csproj" />
   </ItemGroup>
 
-  <!-- Ensure the net8.0 plugin build is available for Docker tests (Jellyfin 10.10.7 = net8.0) -->
-  <Target Name="BuildPluginForDocker" BeforeTargets="Build">
-    <MSBuild Projects="../../src/Jellyfin.Plugin.CastCrew/Jellyfin.Plugin.CastCrew.csproj"
-             Targets="Build"
-             Properties="TargetFramework=net8.0" />
-  </Target>
 </Project>

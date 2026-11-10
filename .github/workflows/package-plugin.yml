@@ -1,337 +1,80 @@
-name: Package CastCrew Plugin
+name: Build, test and publish CastCrew
 
 on:
   workflow_dispatch:
   push:
-    tags:
-      - "v*"
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
 
 permissions:
-  contents: write
-  pages: write
-  id-token: write
+  contents: read
 
 jobs:
   package:
     runs-on: ubuntu-latest
-
+    permissions:
+      contents: write
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: |
             8.0.x
             9.0.x
-
-      - name: Restore plugin dependencies
-        run: dotnet restore src/Jellyfin.Plugin.CastCrew/Jellyfin.Plugin.CastCrew.csproj
-
+            10.0.x
       - name: Determine plugin version
         id: version
         shell: bash
         run: |
-          set -euo pipefail
-          # Prefer git tag (strip leading 'v'); fall back to .csproj for non-tag runs
-          if [[ "${GITHUB_REF:-}" == refs/tags/v* ]]; then
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
             version="${GITHUB_REF#refs/tags/v}"
           else
-            version="$(sed -n '/<Version>/{s:.*<Version>\(.*\)</Version>.*:\1:p;q;}' src/Jellyfin.Plugin.CastCrew/Jellyfin.Plugin.CastCrew.csproj)"
+            version="$(dotnet msbuild src/Jellyfin.Plugin.CastCrew/Jellyfin.Plugin.CastCrew.csproj -nologo -getProperty:Version)"
           fi
           echo "value=$version" >> "$GITHUB_OUTPUT"
-          echo "folder_10_10=CastCrew_${version}_jellyfin-10.10" >> "$GITHUB_OUTPUT"
-          echo "folder_10_11=CastCrew_${version}_jellyfin-10.11" >> "$GITHUB_OUTPUT"
-          echo "zip_10_10=CastCrew_${version}_jellyfin-10.10.zip" >> "$GITHUB_OUTPUT"
-          echo "zip_10_11=CastCrew_${version}_jellyfin-10.11.zip" >> "$GITHUB_OUTPUT"
-
-      - name: Build plugin
-        run: dotnet build src/Jellyfin.Plugin.CastCrew/Jellyfin.Plugin.CastCrew.csproj --configuration Release --no-restore -p:Version=${{ steps.version.outputs.value }}
-
-      - name: Run unit tests
-        run: dotnet test tests/Jellyfin.Plugin.CastCrew.Tests/Jellyfin.Plugin.CastCrew.Tests.csproj --configuration Release -p:Version=${{ steps.version.outputs.value }}
-
-      - name: Run integration test project (opt-in tests remain skipped by default)
-        run: dotnet test tests/Jellyfin.Plugin.CastCrew.IntegrationTests/Jellyfin.Plugin.CastCrew.IntegrationTests.csproj --configuration Release -p:Version=${{ steps.version.outputs.value }} --filter "FullyQualifiedName!~CastCrewDockerIntegrationTests"
-
-      - name: Publish plugin assemblies
+      - name: Build all supported server targets
+        run: dotnet build src/Jellyfin.Plugin.CastCrew/Jellyfin.Plugin.CastCrew.csproj -c Release -p:Version=${{ steps.version.outputs.value }}
+      - name: Run unit tests for all supported server targets
+        run: dotnet test tests/Jellyfin.Plugin.CastCrew.Tests -c Release -p:Version=${{ steps.version.outputs.value }}
+      - name: Run Jellyfin 12 container integration tests
+        run: dotnet test tests/Jellyfin.Plugin.CastCrew.IntegrationTests -c Release -p:Version=${{ steps.version.outputs.value }}
+      - name: Fetch previous manifest
+        env:
+          GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
-          dotnet publish src/Jellyfin.Plugin.CastCrew/Jellyfin.Plugin.CastCrew.csproj --configuration Release --framework net8.0 --no-build --output artifacts/publish-net8
-          dotnet publish src/Jellyfin.Plugin.CastCrew/Jellyfin.Plugin.CastCrew.csproj --configuration Release --framework net9.0 --no-build --output artifacts/publish-net9
-
-      - name: Prepare Jellyfin plugin folders
-        shell: bash
-        run: |
-          set -euo pipefail
-          # Jellyfin 10.10.x package (net8.0 build)
-          pkg10="artifacts/${{ steps.version.outputs.folder_10_10 }}"
-          mkdir -p "$pkg10"
-          cp artifacts/publish-net8/Jellyfin.Plugin.CastCrew.dll "$pkg10/"
-          if [[ -f artifacts/publish-net8/Jellyfin.Plugin.CastCrew.pdb ]]; then
-            cp artifacts/publish-net8/Jellyfin.Plugin.CastCrew.pdb "$pkg10/"
+          mkdir -p artifacts
+          # A new fork has no published repository history yet.
+          if gh api "repos/$GITHUB_REPOSITORY/branches/gh-pages" >/dev/null 2>&1; then
+            gh api "repos/$GITHUB_REPOSITORY/contents/manifest.json?ref=gh-pages" \
+              -H 'Accept: application/vnd.github.raw+json' > artifacts/previous-manifest.json
           fi
-          # Jellyfin 10.11.x package (net9.0 build)
-          pkg11="artifacts/${{ steps.version.outputs.folder_10_11 }}"
-          mkdir -p "$pkg11"
-          cp artifacts/publish-net9/Jellyfin.Plugin.CastCrew.dll "$pkg11/"
-          if [[ -f artifacts/publish-net9/Jellyfin.Plugin.CastCrew.pdb ]]; then
-            cp artifacts/publish-net9/Jellyfin.Plugin.CastCrew.pdb "$pkg11/"
-          fi
-
-      - name: Zip plugin artifacts
-        working-directory: artifacts
-        shell: bash
-        run: |
-          # Zip contents only (no parent directory) — Jellyfin expects DLLs at zip root
-          (cd "${{ steps.version.outputs.folder_10_10 }}" && zip -r "../${{ steps.version.outputs.zip_10_10 }}" .)
-          (cd "${{ steps.version.outputs.folder_10_11 }}" && zip -r "../${{ steps.version.outputs.zip_10_11 }}" .)
-
-      - name: Validate zip structure (DLL must be at root)
-        working-directory: artifacts
-        shell: bash
-        run: |
-          set -euo pipefail
-          for zip in "${{ steps.version.outputs.zip_10_10 }}" "${{ steps.version.outputs.zip_10_11 }}"; do
-            echo "Checking $zip..."
-            if ! unzip -l "$zip" | grep -q "Jellyfin.Plugin.CastCrew.dll$"; then
-              echo "ERROR: $zip does not contain Jellyfin.Plugin.CastCrew.dll" >&2; exit 1
-            fi
-            if unzip -l "$zip" | grep "Jellyfin.Plugin.CastCrew.dll$" | grep -q "/"; then
-              echo "ERROR: $zip has DLL in a subdirectory (must be at zip root)" >&2; exit 1
-            fi
-          done
-          echo "All zips have correct flat structure."
-
-      - name: Compute checksums
-        id: checksum
-        working-directory: artifacts
-        shell: bash
-        run: |
-          md5_10_10=$(md5sum "${{ steps.version.outputs.zip_10_10 }}" | awk '{print $1}')
-          md5_10_11=$(md5sum "${{ steps.version.outputs.zip_10_11 }}" | awk '{print $1}')
-          echo "md5_10_10=$md5_10_10" >> "$GITHUB_OUTPUT"
-          echo "md5_10_11=$md5_10_11" >> "$GITHUB_OUTPUT"
-
-      - name: Fetch existing deployed manifest (if any)
-        shell: bash
-        run: |
-          set -euo pipefail
-          pages_url="https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}"
-          manifest_url="${pages_url}/manifest.json"
-          set +e
-          http_status=$(curl --silent --show-error --location --output artifacts/existing-manifest.json --write-out "%{http_code}" "$manifest_url")
-          curl_exit=$?
-          set -e
-          if [[ $curl_exit -ne 0 ]]; then
-            echo "ERROR: Failed to fetch existing manifest from ${manifest_url} (curl exit ${curl_exit})." >&2
-            exit 1
-          fi
-          if [[ "$http_status" == "200" ]]; then
-            echo "Found existing manifest at ${manifest_url}"
-          elif [[ "$http_status" == "404" ]]; then
-            echo "No existing manifest found at ${manifest_url} (first release or Pages not initialized yet)."
-            rm -f artifacts/existing-manifest.json
-          else
-            echo "ERROR: Unexpected HTTP status ${http_status} while fetching ${manifest_url}." >&2
-            exit 1
-          fi
-
-      - name: Generate plugin repository manifest
-        shell: bash
-        run: |
-          set -euo pipefail
-          VERSION="${{ steps.version.outputs.value }}"
-          PAGES_URL="https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}"
-          TIMESTAMP="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-          CHANGELOG="Preserve release history in manifest deployment so previous versions remain visible in Jellyfin catalog."
-          ZIP_10_11="${{ steps.version.outputs.zip_10_11 }}"
-          ZIP_10_10="${{ steps.version.outputs.zip_10_10 }}"
-          MD5_10_11="${{ steps.checksum.outputs.md5_10_11 }}"
-          MD5_10_10="${{ steps.checksum.outputs.md5_10_10 }}"
-          export VERSION PAGES_URL TIMESTAMP CHANGELOG ZIP_10_11 ZIP_10_10 MD5_10_11 MD5_10_10
-
-          python3 - <<'PY'
-          import json
-          import os
-          import pathlib
-          import sys
-
-          existing_manifest_path = pathlib.Path("artifacts/existing-manifest.json")
-          existing_versions = []
-          if existing_manifest_path.exists():
-              try:
-                  existing_manifest = json.loads(existing_manifest_path.read_text(encoding="utf-8"))
-              except json.JSONDecodeError as exc:
-                  print(f"ERROR: Unable to parse existing manifest JSON: {exc}", file=sys.stderr)
-                  sys.exit(1)
-
-              if not isinstance(existing_manifest, list) or not existing_manifest:
-                  print("ERROR: Existing manifest root must be a non-empty array.", file=sys.stderr)
-                  sys.exit(1)
-
-              versions = existing_manifest[0].get("versions")
-              if not isinstance(versions, list):
-                  print("ERROR: Existing manifest versions field must be an array.", file=sys.stderr)
-                  sys.exit(1)
-              existing_versions = versions
-
-          version = os.environ["VERSION"]
-          pages_url = os.environ["PAGES_URL"]
-          timestamp = os.environ["TIMESTAMP"]
-          changelog = os.environ["CHANGELOG"]
-
-          new_versions = [
-              {
-                  "version": version,
-                  "changelog": f"Target ABI 10.11.x: {changelog}",
-                  "targetAbi": "10.11.0.0",
-                  "sourceUrl": f"{pages_url}/{os.environ['ZIP_10_11']}",
-                  "checksum": os.environ["MD5_10_11"],
-                  "timestamp": timestamp,
-              },
-              {
-                  "version": version,
-                  "changelog": f"Target ABI 10.10.x: {changelog}",
-                  "targetAbi": "10.10.0.0",
-                  "sourceUrl": f"{pages_url}/{os.environ['ZIP_10_10']}",
-                  "checksum": os.environ["MD5_10_10"],
-                  "timestamp": timestamp,
-              },
-          ]
-
-          merged_versions = []
-          seen = set()
-          for entry in [*new_versions, *existing_versions]:
-              if not isinstance(entry, dict):
-                  print("ERROR: Manifest version entries must be objects.", file=sys.stderr)
-                  sys.exit(1)
-              entry_version = entry.get("version")
-              entry_abi = entry.get("targetAbi")
-              if not entry_version or not entry_abi:
-                  print("ERROR: Manifest version entry is missing version or targetAbi.", file=sys.stderr)
-                  sys.exit(1)
-              key = (entry_version, entry_abi)
-              if key in seen:
-                  continue
-              seen.add(key)
-              merged_versions.append(entry)
-
-          manifest = [
-              {
-                  "guid": "a1c3e5f7-2b4d-6e8f-0a1c-3e5f7b9d1e3a",
-                  "name": "CastCrew",
-                  "description": "Adds a Cast & Crew module to the Jellyfin sidebar for browsing actors, directors, producers, and other crew members.",
-                  "overview": "Browse actors, directors, and producers in a dedicated Cast & Crew page within Jellyfin Web.",
-                  "owner": "Zieng",
-                  "category": "General",
-                  "imageUrl": "https://github.com/${{ github.repository }}/raw/main/docs/images/logo.png",
-                  "versions": merged_versions,
-              }
-          ]
-
-          output_path = pathlib.Path("artifacts/manifest.json")
-          output_path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
-          PY
-
-          echo "Generated manifest.json:"
-          cat artifacts/manifest.json
-
-      - name: Prepare Pages deployment
-        shell: bash
-        run: |
-          set -euo pipefail
-          mkdir -p pages
-          cp artifacts/manifest.json pages/
-          cp "artifacts/${{ steps.version.outputs.zip_10_10 }}" pages/
-          cp "artifacts/${{ steps.version.outputs.zip_10_11 }}" pages/
-
-      - name: Validate manifest checksums match zip files
-        shell: bash
-        run: |
-          set -euo pipefail
-          version="${{ steps.version.outputs.value }}"
-          echo "Verifying manifest checksums against actual zip files..."
-          manifest_md5_10_11=$(TARGET_ABI="10.11.0.0" TARGET_VERSION="$version" python3 - <<'PY'
-          import json
-          import os
-          import sys
-          with open("pages/manifest.json", encoding="utf-8") as f:
-              manifest = json.load(f)
-          versions = manifest[0].get("versions", [])
-          matches = [
-              entry.get("checksum")
-              for entry in versions
-              if entry.get("targetAbi") == os.environ["TARGET_ABI"]
-              and entry.get("version") == os.environ["TARGET_VERSION"]
-          ]
-          if not matches or not matches[0]:
-              print(
-                  f"ERROR: Missing manifest checksum for version={os.environ['TARGET_VERSION']} targetAbi={os.environ['TARGET_ABI']}",
-                  file=sys.stderr,
-              )
-              sys.exit(1)
-          print(matches[0])
-          PY
-          )
-          manifest_md5_10_10=$(TARGET_ABI="10.10.0.0" TARGET_VERSION="$version" python3 - <<'PY'
-          import json
-          import os
-          import sys
-          with open("pages/manifest.json", encoding="utf-8") as f:
-              manifest = json.load(f)
-          versions = manifest[0].get("versions", [])
-          matches = [
-              entry.get("checksum")
-              for entry in versions
-              if entry.get("targetAbi") == os.environ["TARGET_ABI"]
-              and entry.get("version") == os.environ["TARGET_VERSION"]
-          ]
-          if not matches or not matches[0]:
-              print(
-                  f"ERROR: Missing manifest checksum for version={os.environ['TARGET_VERSION']} targetAbi={os.environ['TARGET_ABI']}",
-                  file=sys.stderr,
-              )
-              sys.exit(1)
-          print(matches[0])
-          PY
-          )
-          actual_md5_10_11=$(md5sum "pages/${{ steps.version.outputs.zip_10_11 }}" | awk '{print $1}')
-          actual_md5_10_10=$(md5sum "pages/${{ steps.version.outputs.zip_10_10 }}" | awk '{print $1}')
-          echo "  10.11 manifest=$manifest_md5_10_11 actual=$actual_md5_10_11"
-          echo "  10.10 manifest=$manifest_md5_10_10 actual=$actual_md5_10_10"
-          if [[ "$manifest_md5_10_11" != "$actual_md5_10_11" ]]; then
-            echo "ERROR: Checksum mismatch for 10.11 zip!" >&2; exit 1
-          fi
-          if [[ "$manifest_md5_10_10" != "$actual_md5_10_10" ]]; then
-            echo "ERROR: Checksum mismatch for 10.10 zip!" >&2; exit 1
-          fi
-          echo "All checksums verified successfully."
-
-      - name: Upload build artifacts
-        uses: actions/upload-artifact@v4
+      - name: Create packages and manifest
+        run: python3 scripts/package_plugin.py --version '${{ steps.version.outputs.value }}' --repository '${{ github.repository }}' --existing artifacts/previous-manifest.json
+      - uses: actions/upload-artifact@v4
         with:
           name: castcrew-plugin-packages
           path: |
-            artifacts/${{ steps.version.outputs.zip_10_10 }}
-            artifacts/${{ steps.version.outputs.zip_10_11 }}
+            artifacts/*.zip
             artifacts/manifest.json
           if-no-files-found: error
-
-      - name: Attach artifacts to GitHub release
+      - name: Publish GitHub release
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
+          generate_release_notes: true
           files: |
-            artifacts/${{ steps.version.outputs.zip_10_10 }}
-            artifacts/${{ steps.version.outputs.zip_10_11 }}
-
-      - name: Deploy manifest and packages to GitHub Pages
+            artifacts/*.zip
+            artifacts/manifest.json
+      - name: Prepare plugin repository
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          mkdir -p pages
+          cp artifacts/manifest.json pages/
+      - name: Publish plugin manifest
         if: startsWith(github.ref, 'refs/tags/')
         uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./pages
-          keep_files: true
-          destination_dir: .

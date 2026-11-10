@@ -66,7 +66,7 @@ public sealed class DockerFactAttribute : FactAttribute
 /// </summary>
 public sealed class JellyfinDockerFixture : IAsyncLifetime
 {
-    private const string JellyfinImage = "lscr.io/linuxserver/jellyfin:10.10.7";
+    private const string JellyfinImage = "jellyfin/jellyfin:12.0";
     private const int JellyfinPort = 8096;
     private static readonly TimeSpan ContainerStartupTimeout = TimeSpan.FromMinutes(2);
 
@@ -93,7 +93,7 @@ public sealed class JellyfinDockerFixture : IAsyncLifetime
             // Using a bind mount ensures the DLL ends up at the exact path Jellyfin expects.
             var tempPluginDir = Path.Combine(Path.GetTempPath(), "castcrew-docker-test-" + Guid.NewGuid().ToString("N"));
             _tempPluginDir = tempPluginDir;
-            var pluginVersionDir = Path.Combine(tempPluginDir, "data", "plugins", "CastCrew_0.1.0.1");
+            var pluginVersionDir = Path.Combine(tempPluginDir, "plugins", "CastCrew");
             Directory.CreateDirectory(pluginVersionDir);
             File.Copy(pluginDllPath, Path.Combine(pluginVersionDir, "Jellyfin.Plugin.CastCrew.dll"));
 
@@ -165,13 +165,15 @@ public sealed class JellyfinDockerFixture : IAsyncLifetime
         };
 
         client.DefaultRequestHeaders.TryAddWithoutValidation(
-            "X-Emby-Authorization",
+            "Authorization",
             "MediaBrowser Client=\"CastCrewDockerTests\", Device=\"CLI\", DeviceId=\"docker-test\", Version=\"1.0\"");
         client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
 
         if (!string.IsNullOrWhiteSpace(AccessToken))
         {
-            client.DefaultRequestHeaders.TryAddWithoutValidation("X-Emby-Token", AccessToken);
+            client.DefaultRequestHeaders.Remove("Authorization");
+            client.DefaultRequestHeaders.TryAddWithoutValidation("Authorization",
+                $"MediaBrowser Client=\"CastCrewDockerTests\", Device=\"CLI\", DeviceId=\"docker-test\", Version=\"1.0\", Token=\"{AccessToken}\"");
         }
 
         return client;
@@ -242,70 +244,8 @@ public sealed class JellyfinDockerFixture : IAsyncLifetime
         }
     }
 
-    /// <summary>
-    /// Resolves the net8.0 plugin DLL for Jellyfin 10.10.7 Docker containers.
-    /// The integration test project targets net9.0, but the container runs net8.0,
-    /// so we need to locate the net8.0 build output from the plugin project.
-    /// </summary>
     private static string? ResolvePluginDllPath()
-    {
-        var testAssemblyDir = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
-        if (testAssemblyDir is null)
-        {
-            return null;
-        }
-
-        // Navigate from test output to plugin project's net8.0 output.
-        // Test output: tests/.../bin/Debug/net9.0/
-        // Plugin output: src/.../bin/Debug/net8.0/
-        var repoRoot = FindRepoRoot(testAssemblyDir);
-        if (repoRoot is not null)
-        {
-            // Prefer the Debug net8.0 build (produced alongside our test build)
-            var debugDll = Path.Combine(repoRoot,
-                "src", "Jellyfin.Plugin.CastCrew", "bin", "Debug", "net8.0",
-                "Jellyfin.Plugin.CastCrew.dll");
-            if (File.Exists(debugDll))
-            {
-                return debugDll;
-            }
-
-            // Fall back to Release net8.0 build
-            var releaseDll = Path.Combine(repoRoot,
-                "src", "Jellyfin.Plugin.CastCrew", "bin", "Release", "net8.0",
-                "Jellyfin.Plugin.CastCrew.dll");
-            if (File.Exists(releaseDll))
-            {
-                return releaseDll;
-            }
-
-            // Fall back to artifacts
-            var publishedDll = Path.Combine(repoRoot,
-                "artifacts", "docker-test", "Jellyfin.Plugin.CastCrew.dll");
-            if (File.Exists(publishedDll))
-            {
-                return publishedDll;
-            }
-        }
-
-        return null;
-    }
-
-    private static string? FindRepoRoot(string startDir)
-    {
-        var dir = startDir;
-        while (dir is not null)
-        {
-            if (Directory.Exists(Path.Combine(dir, ".git")))
-            {
-                return dir;
-            }
-
-            dir = Path.GetDirectoryName(dir);
-        }
-
-        return null;
-    }
+        => typeof(CastCrewPlugin).Assembly.Location;
 
     private sealed class AuthResponse
     {
@@ -351,30 +291,24 @@ public class CastCrewDockerIntegrationTests
     [DockerFact]
     public void PluginLoads_InDockerContainer()
     {
-        Assert.True(_fixture.IsReady,
-            _fixture.SkipReason ?? "Jellyfin Docker container did not start.");
+        EnsureReady();
+        using var client = _fixture.CreateHttpClient();
+        var plugins = client.GetStringAsync("Plugins").GetAwaiter().GetResult();
+        Assert.Contains("CastCrew", plugins);
+        Assert.DoesNotContain("NotSupported", plugins);
+        Assert.DoesNotContain("Malfunctioned", plugins);
     }
 
     [DockerFact]
-    public async Task FallbackPage_IsRegistered_WhenWebRootIsReadOnly()
+    public async Task MenuLink_IsInjected_IntoWebConfig()
     {
         EnsureReady();
-
         using var client = _fixture.CreateHttpClient();
-        var response = await client.GetAsync("web/configurationpages");
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-
-        var pages = await response.Content.ReadFromJsonAsync<List<ConfigPageInfo>>(JsonOptions);
-        Assert.NotNull(pages);
-
-        var fallbackPage = pages!.FirstOrDefault(p =>
-            string.Equals(p.Name, "castcrew-home", StringComparison.OrdinalIgnoreCase));
-
-        Assert.NotNull(fallbackPage);
-        Assert.True(fallbackPage!.EnableInMainMenu,
-            "Fallback 'castcrew-home' page should have EnableInMainMenu=true in Docker.");
-        Assert.Equal("person", fallbackPage.MenuIcon);
-        Assert.Equal("Cast & Crew", fallbackPage.DisplayName);
+        var response = await client.GetAsync("web/config.json");
+        response.EnsureSuccessStatusCode();
+        var json = await response.Content.ReadAsStringAsync();
+        Assert.Contains("Cast&Crew", json);
+        Assert.Contains("cast_crew", json);
     }
 
     [DockerFact]
@@ -397,12 +331,12 @@ public class CastCrewDockerIntegrationTests
     }
 
     [DockerFact]
-    public async Task FallbackPage_ServesContent_WhenWebRootIsReadOnly()
+    public async Task ConfigPage_ServesContent()
     {
         EnsureReady();
 
         using var client = _fixture.CreateHttpClient();
-        var response = await client.GetAsync("web/configurationpage?name=castcrew-home");
+        var response = await client.GetAsync("web/configurationpage?name=castcrew-config");
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 

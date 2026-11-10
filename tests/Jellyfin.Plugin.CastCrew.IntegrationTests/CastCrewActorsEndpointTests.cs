@@ -190,7 +190,8 @@ public class CastCrewActorsEndpointTests
 
         if (settings.HasApiKey)
         {
-            client.DefaultRequestHeaders.TryAddWithoutValidation("X-Emby-Token", settings.ApiKey);
+            client.DefaultRequestHeaders.Remove("Authorization");
+            client.DefaultRequestHeaders.TryAddWithoutValidation("Authorization", $"MediaBrowser Token=\"{settings.ApiKey}\"");
             return client;
         }
 
@@ -214,7 +215,8 @@ public class CastCrewActorsEndpointTests
             throw new XunitException("Jellyfin authentication did not return an access token.");
         }
 
-        client.DefaultRequestHeaders.TryAddWithoutValidation("X-Emby-Token", auth.AccessToken);
+        client.DefaultRequestHeaders.Remove("Authorization");
+        client.DefaultRequestHeaders.TryAddWithoutValidation("Authorization", $"MediaBrowser Token=\"{auth.AccessToken}\"");
 
         if (!string.IsNullOrWhiteSpace(auth.User?.Id) && string.IsNullOrWhiteSpace(settings.UserId))
         {
@@ -230,7 +232,7 @@ public class CastCrewActorsEndpointTests
             "MediaBrowser Client=\"CastCrewIntegrationTests\", " +
             "Device=\"Copilot CLI\", DeviceId=\"castcrew-integration-tests\", Version=\"1.0.0\"";
 
-        client.DefaultRequestHeaders.TryAddWithoutValidation("X-Emby-Authorization", authorizationHeader);
+        client.DefaultRequestHeaders.TryAddWithoutValidation("Authorization", authorizationHeader);
         client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
     }
 

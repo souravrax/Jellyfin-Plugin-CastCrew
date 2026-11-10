@@ -2,6 +2,8 @@
 
 A Jellyfin plugin that adds a **Cast & Crew** page to the sidebar for browsing actors, directors, and producers with search, sorting, pagination, and person detail navigation.
 
+Fork of [Zieng/Jellyfin-Plugin-CastCrew](https://github.com/Zieng/Jellyfin-Plugin-CastCrew) with Jellyfin 12 support. Plugin identity and existing settings are preserved. Install the package matching your server; remove the old plugin build before upgrading from Jellyfin 10.x.
+
 ## Screenshots
 
 ![Cast & Crew Browse](docs/images/cast-crew-browse.png)
@@ -20,18 +22,20 @@ A Jellyfin plugin that adds a **Cast & Crew** page to the sidebar for browsing a
 1. In Jellyfin, go to **Dashboard → Plugins → Repositories**.
 2. Add a new repository:
    - **Name:** `CastCrew`
-   - **URL:** `https://zieng.github.io/Jellyfin-Plugin-CastCrew/manifest.json`
+   - **URL:** `https://souravrax.github.io/Jellyfin-Plugin-CastCrew/manifest.json`
 3. Go to **Catalog**, find **CastCrew**, and click **Install**.
 4. Restart Jellyfin.
 
-Jellyfin will automatically select the correct version for your server (10.10.x or 10.11.x).
+Jellyfin will automatically select the correct version for your server (10.10.x, 10.11.x, or 12.x).
+If GitHub Pages is unavailable, use the [raw repository manifest](https://raw.githubusercontent.com/souravrax/Jellyfin-Plugin-CastCrew/gh-pages/manifest.json).
 The plugin repository manifest keeps historical releases, so previous CastCrew versions remain visible in Jellyfin's plugin catalog.
 
 ### Manual Installation
 
-1. Download the correct zip from [Releases](https://github.com/Zieng/Jellyfin-Plugin-CastCrew/releases):
+1. Download the correct zip from [Releases](https://github.com/souravrax/Jellyfin-Plugin-CastCrew/releases):
    - `CastCrew_<version>_jellyfin-10.10.zip` for Jellyfin 10.10.x
    - `CastCrew_<version>_jellyfin-10.11.zip` for Jellyfin 10.11.x
+   - `CastCrew_<version>_jellyfin-12.zip` for Jellyfin 12.x
 2. Extract into your Jellyfin plugins directory (e.g., `<data>/plugins/CastCrew_<version>/`).
 3. Restart Jellyfin.
 
@@ -71,6 +75,7 @@ If mapping sync is still pending, Cast & Crew results still load immediately and
 |----------|---------|
 | Jellyfin 10.10.x (net8.0) | ✅ |
 | Jellyfin 10.11.x (net9.0) | ✅ |
+| Jellyfin 12.x (net10.0) | ✅ |
 | Docker (linuxserver, official) | ✅ Works out of the box |
 | Windows installer | ✅ Auto-bootstraps writable web dir |
 | macOS app bundle | ⚠️ Requires writable `--webdir` |
@@ -101,8 +106,6 @@ jellyfin --webdir "$HOME/Library/Application Support/jellyfin/custom-web"
 - CastCrew UI is rendered inside Jellyfin Web only. Native mobile clients (iOS/Android apps) that don't embed the web UI won't show the sidebar entry.
 - The CastCrew API endpoints (`/CastCrew/Actors`, `/CastCrew/Directors`, `/CastCrew/Producers`) remain available on all platforms regardless of UI visibility.
 
-## Development
-
 ## Troubleshooting
 
 ### No Cast&Crew in sidebar
@@ -112,5 +115,16 @@ Open the page in a **private/incognito window**. If it appears there, your brows
 > **Tip:** If you're unsure whether the plugin is working, try opening Jellyfin in a private/incognito browser window first. This bypasses all browser caches and gives you a clean test.
 
 ## Development
+
+Requires the .NET 10 SDK. Test projects allow runtime roll-forward if only .NET 10 is installed.
+
+```sh
+dotnet build src/Jellyfin.Plugin.CastCrew -c Release
+dotnet test tests/Jellyfin.Plugin.CastCrew.Tests -c Release
+dotnet test tests/Jellyfin.Plugin.CastCrew.IntegrationTests -c Release
+python3 scripts/package_plugin.py --version 0.2.0.0 --repository souravrax/Jellyfin-Plugin-CastCrew
+```
+
+The integration suite starts an isolated Jellyfin 12.0 container when Docker is available. Host endpoint tests require `CASTCREW_RUN_INTEGRATION_TESTS=true` and a configured test server. Tagging `v<version>` publishes three server-specific ZIPs, a GitHub release, and the plugin repository manifest. Package URLs point to release assets so older manifest entries remain downloadable.
 
 For architecture details, build commands, API contracts, project structure, and contribution guidance, see **[DESIGN.md](DESIGN.md)**.

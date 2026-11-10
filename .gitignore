@@ -37,3 +37,7 @@ Thumbs.db
 
 # Docker test runtime data (config volumes)
 tests/docker/config/
+
+# Python packaging helpers
+__pycache__/
+*.pyc

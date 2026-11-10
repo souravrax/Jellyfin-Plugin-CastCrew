@@ -12,7 +12,7 @@
 | Build release zip locally | `VERSION=$(dotnet msbuild src/Jellyfin.Plugin.CastCrew/Jellyfin.Plugin.CastCrew.csproj -nologo -getProperty:Version | tail -n 1) && dotnet publish src/Jellyfin.Plugin.CastCrew/Jellyfin.Plugin.CastCrew.csproj --configuration Release --framework net9.0 -p:Version=$VERSION --output artifacts/publish && mkdir -p artifacts/CastCrew_${VERSION} && cp artifacts/publish/Jellyfin.Plugin.CastCrew.dll artifacts/CastCrew_${VERSION}/ && (cd artifacts && zip -r CastCrew_${VERSION}.zip CastCrew_${VERSION})` |
 | Lint/format check | No dedicated lint command is configured in this repository. |
 
-The plugin and test projects multi-target `net8.0` (Jellyfin 10.10.x) and `net9.0` (Jellyfin 10.11.x). Test projects set `RollForward=Major`, so tests can run on newer installed runtimes (for example .NET 10) when neither .NET 8 nor .NET 9 runtime is present locally.
+The plugin and test projects multi-target `net8.0` (Jellyfin 10.10.x) and `net9.0` (Jellyfin 10.11.x), and `net10.0` (Jellyfin 12.x). Test projects set `RollForward=Major`, so tests can run on newer installed runtimes (for example .NET 10) when neither .NET 8 nor .NET 9 runtime is present locally.
 
 ## Local integration testing and cleanup
 
@@ -59,7 +59,7 @@ When making changes to architecture/workflow conventions, keep these locations i
 
 ## High-level architecture
 
-- This repository contains one Jellyfin server plugin project at `src/Jellyfin.Plugin.CastCrew`, a unit-test project at `tests/Jellyfin.Plugin.CastCrew.Tests`, and an integration-test project at `tests/Jellyfin.Plugin.CastCrew.IntegrationTests`, multi-targeting Jellyfin `10.10.7` (net8.0) and `10.11.11` (net9.0).
+- This repository contains one Jellyfin server plugin project at `src/Jellyfin.Plugin.CastCrew`, a unit-test project at `tests/Jellyfin.Plugin.CastCrew.Tests`, and an integration-test project at `tests/Jellyfin.Plugin.CastCrew.IntegrationTests`, multi-targeting Jellyfin `10.10.0` (net8.0) and `10.11.0` (net9.0), and `12.0.0` (net10.0).
 - `CastCrewPlugin` is the plugin entrypoint. It extends `BasePlugin<PluginConfiguration>` and implements `IHasWebPages` for the admin config page while syncing user-home navigation through `CastCrewWebConfigPatcher`.
 - The user-facing Cast & Crew UI is rendered by synchronized `Web/castcrew-top-banner-link.js` inside the native Jellyfin home-shell route (`/web/#/home?tab=cast_crew`) and consumes plugin-owned adapter APIs (`GET /CastCrew/Actors`, `GET /CastCrew/Directors`, `GET /CastCrew/Producers`); `Web/cast-crew-standalone.html` remains a compatibility redirect resource. This Web integration is the primary supported UX surface.
 - `CastCrewController` delegates actor querying to `CastCrewActorQueryService`, which uses `ILibraryManager` + `IDtoService` and normalizes query/config behavior via `CastCrewActorQueryNormalizer`.

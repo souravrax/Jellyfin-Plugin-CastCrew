@@ -376,7 +376,7 @@ public sealed class CastCrewLibraryPersonMappingService
         }
     }
 
-#if JELLYFIN_10_11
+#if JELLYFIN_10_11 || JELLYFIN_12
     private Jellyfin.Database.Implementations.Entities.User? GetAnyQueryUser()
 #else
     private Jellyfin.Data.Entities.User? GetAnyQueryUser()

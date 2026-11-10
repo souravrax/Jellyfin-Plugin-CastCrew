@@ -64,8 +64,14 @@ public sealed class CastCrewController : ControllerBase
                     new
                     {
                         version,
-                        changelog = "Cast & Crew plugin with multi-version Jellyfin support (10.10.x and 10.11.x).",
-                        targetAbi = "10.10.7.0",
+                        changelog = "Cast & Crew plugin with multi-version Jellyfin support (10.10.x, 10.11.x, and 12.x).",
+                        #if JELLYFIN_12
+                        targetAbi = "12.0.0.0",
+#elif JELLYFIN_10_11
+                        targetAbi = "10.11.0.0",
+#else
+                        targetAbi = "10.10.0.0",
+#endif
                         sourceUrl = string.Empty,
                         checksum = string.Empty,
                         timestamp = "2026-06-27T00:00:00Z"
@@ -213,7 +219,7 @@ public sealed class CastCrewController : ControllerBase
         return Ok(response);
     }
 
-#if JELLYFIN_10_11
+#if JELLYFIN_10_11 || JELLYFIN_12
     private Jellyfin.Database.Implementations.Entities.User? GetAuthenticatedUser(Guid? queryUserId)
 #else
     private Jellyfin.Data.Entities.User? GetAuthenticatedUser(Guid? queryUserId)
