@@ -133,6 +133,7 @@ Version 0.2.0.0 was checked with:
 
 - 43 unit tests on each of .NET 8, 9, and 10 (129 passing test runs), including nonempty actor/director/producer queries and grouped search.
 - Four authenticated HTTP integration tests against Jellyfin 12.0.0.
+- Eight Docker integration checks against the official Jellyfin 12.0 image in GitHub Actions.
 - A synthetic movie with local actor, director, and producer credits: nonempty results, grouped name search, and library filtering.
 - Jellyfin 12's Modern web layout: Cast & Crew navigation and person cards.
 - Separate release ZIPs with root-level plugin assemblies and matching manifest checksums.
