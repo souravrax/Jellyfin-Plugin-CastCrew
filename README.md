@@ -20,12 +20,12 @@ Fork of [Zieng/Jellyfin-Plugin-CastCrew](https://github.com/Zieng/Jellyfin-Plugi
 1. In Jellyfin, go to **Dashboard → Plugins → Repositories**.
 2. Add a new repository:
    - **Name:** `CastCrew`
-   - **URL:** `https://souravrax.github.io/Jellyfin-Plugin-CastCrew/manifest.json`
+   - **URL:** `https://raw.githubusercontent.com/souravrax/Jellyfin-Plugin-CastCrew/refs/heads/gh-pages/manifest.json`
 3. Go to **Catalog**, find **CastCrew**, and click **Install**.
 4. Restart Jellyfin.
 
 Jellyfin will automatically select the correct version for your server (10.10.x, 10.11.x, or 12.x).
-If GitHub Pages is unavailable, use the [raw repository manifest](https://raw.githubusercontent.com/souravrax/Jellyfin-Plugin-CastCrew/gh-pages/manifest.json).
+The manifest is served directly from the repository; GitHub Pages is not required.
 The plugin repository manifest keeps historical releases, so previous CastCrew versions remain visible in Jellyfin's plugin catalog.
 
 ### Manual Installation

@@ -67,12 +67,12 @@ jobs:
           files: |
             artifacts/*.zip
             artifacts/manifest.json
-      - name: Prepare plugin repository
+      - name: Prepare raw plugin manifest
         if: startsWith(github.ref, 'refs/tags/')
         run: |
           mkdir -p pages
           cp artifacts/manifest.json pages/
-      - name: Publish plugin manifest
+      - name: Update raw manifest branch
         if: startsWith(github.ref, 'refs/tags/')
         uses: peaceiris/actions-gh-pages@v4
         with:

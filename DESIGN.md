@@ -266,7 +266,7 @@ Jellyfin starts
 Workflow: `.github/workflows/package-plugin.yml`
 
 - **Trigger:** Push to `main`, pull requests, tag push (`v*`), or manual dispatch
-- **Steps:** Build all targets → Unit tests → Jellyfin 12 Docker integration tests → Existing manifest fetch → ZIP + checksum + manifest merge → Upload artifacts → GitHub Release + manifest deployment (tags only)
+- **Steps:** Build all targets → Unit tests → Jellyfin 12 Docker integration tests → Existing manifest fetch → ZIP + checksum + manifest merge → Upload artifacts → GitHub Release + raw manifest branch update (tags only)
 - **Outputs:** `CastCrew_<version>_jellyfin-10.10.zip`, `CastCrew_<version>_jellyfin-10.11.zip`, `CastCrew_<version>_jellyfin-12.zip`, `manifest.json`
 - **Release history:** The manifest merges current entries into prior versions; version-specific GitHub release URLs keep historical packages downloadable.
 - **Version:** Derived from the git tag (strips `v`) for releases; otherwise uses the reproducible project version.
@@ -322,4 +322,4 @@ When working on this codebase as an AI agent:
 
 The .NET 10 target builds against the baseline Jellyfin 12.0.0 SDK and emits target ABI 12.0.0.0. User entities retain the 10.11 database namespace. `ILibraryManager.GetPeopleItems` now returns `QueryResult<BaseItem>`: the adapter extracts person items and disables the unused database total count because facets and sorting still operate on the full set. Restricted users use the server's `ConfigureUserAccess` with an `AccessFilter`, matching the native Persons endpoint. Fetch fallbacks use the current Authorization header.
 
-All three targets are tested and packaged separately. Release ZIPs contain only the plugin assembly and symbols at the archive root; server dependencies are supplied by Jellyfin. GitHub release assets provide immutable version-specific download URLs; the manifest retains earlier releases. The Docker integration suite uses the baseline official Jellyfin 12.0 image.
+All three targets are tested and packaged separately. Release ZIPs contain only the plugin assembly and symbols at the archive root; server dependencies are supplied by Jellyfin. GitHub release assets provide immutable version-specific download URLs; the raw manifest on the `gh-pages` branch retains earlier releases and requires no GitHub Pages site. The Docker integration suite uses the baseline official Jellyfin 12.0 image.
