@@ -15,6 +15,6 @@ applyTo:
 
 ## Runtime compatibility
 
-- Tests target `net9.0`.
+- Unit tests target `net8.0`, `net9.0`, and `net10.0`; integration tests target `net10.0`.
 - Keep `RollForward=Major` in test project unless runtime strategy is intentionally changed.
 - If runtime strategy changes, update README and Copilot instructions in the same change.

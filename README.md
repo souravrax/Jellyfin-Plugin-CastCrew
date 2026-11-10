@@ -6,8 +6,6 @@ Fork of [Zieng/Jellyfin-Plugin-CastCrew](https://github.com/Zieng/Jellyfin-Plugi
 
 ## Screenshots
 
-![Cast & Crew Browse](docs/images/cast-crew-browse.png)
-
 <details>
 <summary>Navigation Demo (GIF)</summary>
 
@@ -76,14 +74,14 @@ If mapping sync is still pending, Cast & Crew results still load immediately and
 | Jellyfin 10.10.x (net8.0) | ✅ |
 | Jellyfin 10.11.x (net9.0) | ✅ |
 | Jellyfin 12.x (net10.0) | ✅ |
-| Docker (linuxserver, official) | ✅ Works out of the box |
+| Docker (linuxserver, official) | ✅; see web-root permissions below |
 | Windows installer | ✅ Auto-bootstraps writable web dir |
 | macOS app bundle | ⚠️ Requires writable `--webdir` |
 | Native mobile clients | ❌ Web-only (API endpoints still available) |
 
 ### Docker
 
-The plugin works automatically in Docker containers with read-only web roots. No additional configuration is needed — the sidebar entry is injected at the HTTP response level without modifying any files on disk.
+The menu link is injected into `config.json` responses even when the web root is read-only. Rendering the Cast & Crew page also requires the plugin script in `index.html`; allow writes to the web directory during plugin initialization or provision those web assets separately. A fully read-only web root can display the menu link without rendering the page.
 
 ### Windows Installer
 
@@ -125,6 +123,18 @@ dotnet test tests/Jellyfin.Plugin.CastCrew.IntegrationTests -c Release
 python3 scripts/package_plugin.py --version 0.2.0.0 --repository souravrax/Jellyfin-Plugin-CastCrew
 ```
 
-The integration suite starts an isolated Jellyfin 12.0 container when Docker is available. Host endpoint tests require `CASTCREW_RUN_INTEGRATION_TESTS=true` and a configured test server. Tagging `v<version>` publishes three server-specific ZIPs, a GitHub release, and the plugin repository manifest. Package URLs point to release assets so older manifest entries remain downloadable.
+The integration suite starts an isolated Jellyfin 12.0 container when Docker is available and removes it after the run. It does not use your normal Jellyfin library. Host endpoint tests require `CASTCREW_RUN_INTEGRATION_TESTS=true` and a configured test server. Tagging `v<version>` publishes three server-specific ZIPs, a GitHub release, and the plugin repository manifest. Package URLs point to release assets so older manifest entries remain downloadable.
 
 For architecture details, build commands, API contracts, project structure, and contribution guidance, see **[DESIGN.md](DESIGN.md)**.
+
+## Validation
+
+Version 0.2.0.0 was checked with:
+
+- 43 unit tests on each of .NET 8, 9, and 10 (129 passing test runs), including nonempty actor/director/producer queries and grouped search.
+- Four authenticated HTTP integration tests against Jellyfin 12.0.0.
+- A synthetic movie with local actor, director, and producer credits: nonempty results, grouped name search, and library filtering.
+- Jellyfin 12's Modern web layout: Cast & Crew navigation and person cards.
+- Separate release ZIPs with root-level plugin assemblies and matching manifest checksums.
+
+Temporary local server data, media fixtures, downloaded SDKs, and build outputs used for these checks were removed afterward. GitHub CI runs the unit suite and Jellyfin 12 Docker checks; see [Actions](https://github.com/souravrax/Jellyfin-Plugin-CastCrew/actions).

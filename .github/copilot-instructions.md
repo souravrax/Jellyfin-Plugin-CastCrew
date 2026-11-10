@@ -9,10 +9,12 @@
 | Run all tests | `dotnet test tests/Jellyfin.Plugin.CastCrew.Tests/Jellyfin.Plugin.CastCrew.Tests.csproj` |
 | Run a single test | `dotnet test tests/Jellyfin.Plugin.CastCrew.Tests/Jellyfin.Plugin.CastCrew.Tests.csproj --filter "FullyQualifiedName~CastCrewActorQueryNormalizerTests"` |
 | Run integration tests | `CASTCREW_RUN_INTEGRATION_TESTS=true CASTCREW_BASE_URL=http://127.0.0.1:8096 CASTCREW_API_KEY=<key> dotnet test tests/Jellyfin.Plugin.CastCrew.IntegrationTests/Jellyfin.Plugin.CastCrew.IntegrationTests.csproj` |
-| Build release zip locally | `VERSION=$(dotnet msbuild src/Jellyfin.Plugin.CastCrew/Jellyfin.Plugin.CastCrew.csproj -nologo -getProperty:Version | tail -n 1) && dotnet publish src/Jellyfin.Plugin.CastCrew/Jellyfin.Plugin.CastCrew.csproj --configuration Release --framework net9.0 -p:Version=$VERSION --output artifacts/publish && mkdir -p artifacts/CastCrew_${VERSION} && cp artifacts/publish/Jellyfin.Plugin.CastCrew.dll artifacts/CastCrew_${VERSION}/ && (cd artifacts && zip -r CastCrew_${VERSION}.zip CastCrew_${VERSION})` |
+| Build release ZIPs locally | `dotnet build src/Jellyfin.Plugin.CastCrew -c Release` then `python3 scripts/package_plugin.py --version 0.2.0.0 --repository souravrax/Jellyfin-Plugin-CastCrew` |
 | Lint/format check | No dedicated lint command is configured in this repository. |
 
-The plugin and test projects multi-target `net8.0` (Jellyfin 10.10.x) and `net9.0` (Jellyfin 10.11.x), and `net10.0` (Jellyfin 12.x). Test projects set `RollForward=Major`, so tests can run on newer installed runtimes (for example .NET 10) when neither .NET 8 nor .NET 9 runtime is present locally.
+The plugin and unit-test projects multi-target `net8.0` (Jellyfin 10.10.x), `net9.0` (Jellyfin 10.11.x), and `net10.0` (Jellyfin 12.x). Test projects set `RollForward=Major`, so tests can run on newer installed runtimes (for example .NET 10) when neither .NET 8 nor .NET 9 runtime is present locally.
+
+The integration project targets .NET 10 and its Docker fixture uses Jellyfin 12.0.
 
 ## Local integration testing and cleanup
 

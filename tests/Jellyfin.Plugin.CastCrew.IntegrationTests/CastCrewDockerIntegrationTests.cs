@@ -107,7 +107,7 @@ public sealed class JellyfinDockerFixture : IAsyncLifetime
                 .WithBindMount(tempPluginDir, "/config")
                 .WithWaitStrategy(Wait.ForUnixContainer()
                     .UntilHttpRequestIsSucceeded(request =>
-                        request.ForPath("/System/Info/Public").ForPort((ushort)JellyfinPort)))
+                        request.ForPath("/health").ForPort((ushort)JellyfinPort)))
                 .Build();
 
             using var startCts = new CancellationTokenSource(ContainerStartupTimeout);
@@ -116,8 +116,8 @@ public sealed class JellyfinDockerFixture : IAsyncLifetime
             var mappedPort = _container.GetMappedPublicPort(JellyfinPort);
             BaseUrl = $"http://localhost:{mappedPort}/";
 
-            // Wait briefly for plugin services to initialize after HTTP becomes available
-            await Task.Delay(3000);
+            // /System/Info/Public can answer during the setup host's migration phase;
+            // /health waits until the actual API and plugin services are ready.
             await CompleteSetupWizardAsync();
             IsReady = true;
         }

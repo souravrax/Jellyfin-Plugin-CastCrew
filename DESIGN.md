@@ -19,7 +19,7 @@ dotnet test tests/Jellyfin.Plugin.CastCrew.IntegrationTests/Jellyfin.Plugin.Cast
 # Deploy locally (macOS)
 VERSION=$(dotnet msbuild src/Jellyfin.Plugin.CastCrew/Jellyfin.Plugin.CastCrew.csproj -nologo -getProperty:Version | tail -n 1)
 dotnet publish src/Jellyfin.Plugin.CastCrew/Jellyfin.Plugin.CastCrew.csproj \
-  --configuration Debug --framework net8.0 -p:Version="$VERSION" --output artifacts/local
+  --configuration Debug --framework net10.0 -p:Version="$VERSION" --output artifacts/local
 mkdir -p ~/Library/Application\ Support/jellyfin/plugins/CastCrew_${VERSION}
 cp artifacts/local/Jellyfin.Plugin.CastCrew.dll \
   ~/Library/Application\ Support/jellyfin/plugins/CastCrew_${VERSION}/
@@ -75,7 +75,7 @@ cp artifacts/local/Jellyfin.Plugin.CastCrew.dll \
 | `IStartupFilter` registration | Ensures middleware runs BEFORE static file middleware |
 | Multi-target net8.0 + net9.0 + net10.0 | Supports Jellyfin 10.10.x, 10.11.x, and 12.x from a single codebase |
 | Embedded resources for web pages | No external file dependencies; works in any plugin directory |
-| `InternalPeopleQuery` for data | Only reliable person query path across Jellyfin 10.10/10.11 |
+| `InternalPeopleQuery` for data | Shared people-query path with a Jellyfin 12 result adapter |
 
 ---
 
@@ -234,7 +234,7 @@ Jellyfin starts
 - Integration tests: opt-in via env vars (`CASTCREW_RUN_INTEGRATION_TESTS=true`)
 - Docker tests: auto-run when Docker is available (Testcontainers)
 - Keep `RollForward=Major` in test projects for runtime flexibility
-- Tests multi-target `net8.0` + `net9.0` + `net10.0`
+- Unit tests multi-target `net8.0` + `net9.0` + `net10.0`; integration tests target `net10.0`
 
 ---
 
@@ -247,7 +247,7 @@ Jellyfin starts
 | Unit tests | `dotnet test tests/Jellyfin.Plugin.CastCrew.Tests/Jellyfin.Plugin.CastCrew.Tests.csproj` |
 | Docker tests | `dotnet test tests/Jellyfin.Plugin.CastCrew.IntegrationTests/Jellyfin.Plugin.CastCrew.IntegrationTests.csproj --filter "FullyQualifiedName~CastCrewDockerIntegrationTests"` |
 | Integration tests | `CASTCREW_RUN_INTEGRATION_TESTS=true CASTCREW_BASE_URL=http://127.0.0.1:8096 CASTCREW_API_KEY=<key> dotnet test tests/Jellyfin.Plugin.CastCrew.IntegrationTests/Jellyfin.Plugin.CastCrew.IntegrationTests.csproj` |
-| Release zip | See CI workflow or `dotnet publish ... --framework net8.0 --output artifacts/publish` |
+| Release ZIPs | Build Release, then `python3 scripts/package_plugin.py --version 0.2.0.0 --repository souravrax/Jellyfin-Plugin-CastCrew` |
 
 ### Integration Test Environment Variables
 
@@ -265,11 +265,11 @@ Jellyfin starts
 
 Workflow: `.github/workflows/package-plugin.yml`
 
-- **Trigger:** Tag push (`v*`) or manual dispatch
-- **Steps:** Restore → Build → Unit tests → Integration tests (Docker excluded) → Publish → Zip → Checksum → Existing manifest fetch → Manifest merge (dedupe by version + ABI) → Upload artifacts → GitHub Release + Pages deploy
+- **Trigger:** Push to `main`, pull requests, tag push (`v*`), or manual dispatch
+- **Steps:** Build all targets → Unit tests → Jellyfin 12 Docker integration tests → Existing manifest fetch → ZIP + checksum + manifest merge → Upload artifacts → GitHub Release + manifest deployment (tags only)
 - **Outputs:** `CastCrew_<version>_jellyfin-10.10.zip`, `CastCrew_<version>_jellyfin-10.11.zip`, `CastCrew_<version>_jellyfin-12.zip`, `manifest.json`
-- **Release history:** Pages deployment keeps existing files, and manifest generation merges current release entries into prior versions so catalog history is preserved.
-- **Version:** Derived from git tag (strips `v` prefix) in CI; local non-GitHub builds default to timestamped `0.1.yyDDD.HHmm`
+- **Release history:** The manifest merges current entries into prior versions; version-specific GitHub release URLs keep historical packages downloadable.
+- **Version:** Derived from the git tag (strips `v`) for releases; otherwise uses the reproducible project version.
 
 ---
 
@@ -281,8 +281,8 @@ Workflow: `.github/workflows/package-plugin.yml`
 | Sidebar shows in private mode only | Browser HTTP cache has stale config.json | Hard refresh (Ctrl+Shift+R) once |
 | `UnauthorizedAccessException` in logs | Read-only web root (expected in Docker) | Normal — middleware handles it |
 | Plugin DLL fails to load in container | Wrong .NET target (net9.0 on 10.10.x host) | Use net8.0 build for Jellyfin 10.10.x |
-| Cast&Crew page blank after clicking | `castcrew-top-banner-link.js` not injected | Expected on read-only roots; page shows standalone UI |
-| Tests timeout on CI | Docker tests running in packaging workflow | Ensure `--filter "!~CastCrewDocker"` in CI |
+| Cast&Crew page blank after clicking | `castcrew-top-banner-link.js` not injected | Provide a writable web root during initialization or provision the web script and index reference |
+| Docker tests fail during startup | Image pull, Docker daemon, or server startup failure | Inspect the fixture failure in Actions; tests use the baseline Jellyfin 12.0 image |
 
 ---
 
