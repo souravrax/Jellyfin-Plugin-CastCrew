@@ -6,9 +6,11 @@ from datetime import datetime, timezone
 from pathlib import Path
 from zipfile import ZipFile, ZIP_DEFLATED
 
-TARGETS = (("10.10", "net8.0", "10.10.0.0"),
+# Jellyfin selects the first compatible entry when plugin versions tie.
+# Newer servers also satisfy older minimum ABIs, so newest ABI must come first.
+TARGETS = (("12", "net10.0", "12.0.0.0"),
            ("10.11", "net9.0", "10.11.0.0"),
-           ("12", "net10.0", "12.0.0.0"))
+           ("10.10", "net8.0", "10.10.0.0"))
 
 
 def package(version, repository, output, existing=None):
