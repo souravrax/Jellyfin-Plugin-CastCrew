@@ -2,12 +2,35 @@
   {
     "guid": "a1c3e5f7-2b4d-6e8f-0a1c-3e5f7b9d1e3a",
     "name": "CastCrew",
-    "description": "Adds a Cast & Crew module to the Jellyfin sidebar for browsing actors, directors, producers, and other crew members.",
-    "overview": "Browse actors, directors, and producers in a dedicated Cast & Crew page within Jellyfin Web.",
-    "owner": "Zieng",
+    "description": "Adds a Cast & Crew page for browsing actors, directors, and producers in Jellyfin Web.",
+    "overview": "Browse and filter cast and crew in Jellyfin Web.",
+    "owner": "souravrax",
     "category": "General",
-    "imageUrl": "https://github.com/Zieng/Jellyfin-Plugin-CastCrew/raw/main/docs/images/logo.png",
     "versions": [
+      {
+        "version": "0.2.0.0",
+        "changelog": "Jellyfin 10.10: add Jellyfin 12 support, updated people queries and authentication; retain 10.10/10.11 builds.",
+        "targetAbi": "10.10.0.0",
+        "sourceUrl": "https://github.com/souravrax/Jellyfin-Plugin-CastCrew/releases/download/v0.2.0.0/CastCrew_0.2.0.0_jellyfin-10.10.zip",
+        "checksum": "d36ed80edb218864e49d9e9b6ab9c702",
+        "timestamp": "2026-11-10T09:17:08Z"
+      },
+      {
+        "version": "0.2.0.0",
+        "changelog": "Jellyfin 10.11: add Jellyfin 12 support, updated people queries and authentication; retain 10.10/10.11 builds.",
+        "targetAbi": "10.11.0.0",
+        "sourceUrl": "https://github.com/souravrax/Jellyfin-Plugin-CastCrew/releases/download/v0.2.0.0/CastCrew_0.2.0.0_jellyfin-10.11.zip",
+        "checksum": "036d11e48fa7ae1262df55528122a2ca",
+        "timestamp": "2026-11-10T09:17:08Z"
+      },
+      {
+        "version": "0.2.0.0",
+        "changelog": "Jellyfin 12: add Jellyfin 12 support, updated people queries and authentication; retain 10.10/10.11 builds.",
+        "targetAbi": "12.0.0.0",
+        "sourceUrl": "https://github.com/souravrax/Jellyfin-Plugin-CastCrew/releases/download/v0.2.0.0/CastCrew_0.2.0.0_jellyfin-12.zip",
+        "checksum": "27e8381d1faaf0c11004534632a0e806",
+        "timestamp": "2026-11-10T09:17:08Z"
+      },
       {
         "version": "0.1.0.10",
         "changelog": "Target ABI 10.11.x: Preserve release history in manifest deployment so previous versions remain visible in Jellyfin catalog.",
